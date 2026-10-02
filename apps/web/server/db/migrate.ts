@@ -3,6 +3,7 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import * as dotenv from 'dotenv';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
 dotenv.config();
@@ -20,7 +21,8 @@ async function runMigrations() {
   const db = drizzle(migrationClient);
 
   try {
-    const migrationsFolder = path.resolve(__dirname, 'migrations');
+    const currentDir = path.dirname(fileURLToPath(import.meta.url));
+    const migrationsFolder = path.resolve(currentDir, 'migrations');
     await migrate(db, { migrationsFolder });
     console.log('Migrations applied successfully.');
   } catch (error) {
