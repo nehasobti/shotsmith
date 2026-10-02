@@ -1,0 +1,10 @@
+node_modules
+.output
+.nuxt
+.nitro
+dist
+.turbo
+*.log
+.env
+.env.local
+.vercel
