@@ -9,11 +9,11 @@ import { useCredits } from '~/composables/useCredits';
 import {
   Sparkles,
   ArrowLeft,
-  FolderKanban,
   Images,
   FileText,
   UploadCloud,
   Loader2,
+  Share2,
 } from 'lucide-vue-next';
 
 interface Asset {
@@ -59,7 +59,6 @@ const fetchProjectDetails = async () => {
     assetsList.value = data.assets;
 
     if (data.assets.length > 0) {
-      // Default to latest asset if not currently selected
       if (!activeAsset.value || !data.assets.some((a) => a.id === activeAsset.value?.id)) {
         activeAsset.value = data.assets[0] || null;
       }
@@ -115,39 +114,42 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex flex-col h-[calc(100vh-4rem)] overflow-hidden">
+  <div class="flex flex-col h-[calc(100vh-4rem)] overflow-hidden bg-background">
     <!-- Studio Sub-Header -->
-    <header class="h-14 border-b border-border bg-card/60 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0">
+    <header class="h-16 border-b border-border/80 bg-card/60 backdrop-blur-xl px-4 sm:px-6 flex items-center justify-between shrink-0">
       <div class="flex items-center gap-4 min-w-0">
         <NuxtLink
           to="/projects"
-          class="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          title="Back to Projects"
+          class="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all border border-border/60 hover:border-border"
+          title="Return to Projects"
         >
           <ArrowLeft class="h-4 w-4" />
         </NuxtLink>
 
         <div class="min-w-0">
-          <div class="flex items-center gap-2">
-            <h1 class="text-sm font-bold text-foreground truncate">
-              {{ project?.name || 'Studio' }}
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-sm font-extrabold text-foreground truncate tracking-tight">
+              {{ project?.name || 'Studio Session' }}
             </h1>
             <span
               v-if="activeAsset"
-              class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground"
+              class="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20"
             >
               {{ activeAsset.kind }}
             </span>
           </div>
+          <p v-if="project?.productDescription" class="text-[11px] text-muted-foreground truncate max-w-xs sm:max-w-md">
+            {{ project.productDescription }}
+          </p>
         </div>
       </div>
 
       <!-- Navigation tabs between Studio, Gallery, and Ad Copy -->
-      <div class="flex items-center gap-1 bg-muted/60 p-1 rounded-xl text-xs font-semibold">
+      <div class="flex items-center gap-1 bg-muted/60 p-1.5 rounded-2xl text-xs font-bold border border-border/60">
         <NuxtLink
           :to="`/projects/${projectId}`"
-          class="flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all"
-          active-class="bg-card text-foreground shadow-xs font-bold"
+          class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl transition-all"
+          active-class="bg-card text-foreground shadow-xs font-black"
         >
           <Sparkles class="h-3.5 w-3.5 text-primary" />
           <span>Studio</span>
@@ -155,8 +157,8 @@ onMounted(async () => {
 
         <NuxtLink
           :to="`/projects/${projectId}/gallery`"
-          class="flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all text-muted-foreground hover:text-foreground"
-          active-class="!bg-card !text-foreground shadow-xs !font-bold"
+          class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl transition-all text-muted-foreground hover:text-foreground"
+          active-class="!bg-card !text-foreground shadow-xs !font-black"
         >
           <Images class="h-3.5 w-3.5" />
           <span>Gallery</span>
@@ -164,8 +166,8 @@ onMounted(async () => {
 
         <NuxtLink
           :to="`/projects/${projectId}/copy`"
-          class="flex items-center gap-1.5 px-3 py-1 rounded-lg transition-all text-muted-foreground hover:text-foreground"
-          active-class="!bg-card !text-foreground shadow-xs !font-bold"
+          class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl transition-all text-muted-foreground hover:text-foreground"
+          active-class="!bg-card !text-foreground shadow-xs !font-black"
         >
           <FileText class="h-3.5 w-3.5" />
           <span>Ad Copy</span>
@@ -175,10 +177,10 @@ onMounted(async () => {
       <!-- Quick Upload Action -->
       <div class="flex items-center gap-2">
         <label
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 text-secondary-foreground text-xs font-semibold cursor-pointer transition-colors border border-border"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold cursor-pointer transition-all shadow-md shadow-violet-500/20 hover:scale-[1.02]"
         >
-          <UploadCloud class="h-3.5 w-3.5" />
-          <span class="hidden sm:inline">Upload New</span>
+          <UploadCloud class="h-4 w-4" />
+          <span class="hidden sm:inline">Upload Photo</span>
           <input
             type="file"
             class="hidden"
@@ -193,14 +195,17 @@ onMounted(async () => {
     <div class="flex-1 p-3 sm:p-4 overflow-hidden flex flex-col lg:flex-row gap-3">
       <!-- Loading view -->
       <div v-if="isLoading" class="flex-1 flex flex-col items-center justify-center">
-        <Loader2 class="h-8 w-8 animate-spin text-primary mb-2" />
-        <p class="text-xs text-muted-foreground">Loading Studio...</p>
+        <Loader2 class="h-9 w-9 animate-spin text-primary mb-3" />
+        <p class="text-xs font-bold text-muted-foreground">Loading Studio Workspace...</p>
       </div>
 
       <!-- Error view -->
-      <div v-else-if="errorMessage" class="flex-1 flex flex-col items-center justify-center text-center p-6">
-        <p class="text-sm font-semibold text-destructive mb-2">{{ errorMessage }}</p>
-        <NuxtLink to="/projects" class="text-xs text-primary underline">Return to projects</NuxtLink>
+      <div v-else-if="errorMessage" class="flex-1 flex flex-col items-center justify-center text-center p-8">
+        <div class="w-12 h-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mb-3">
+          !
+        </div>
+        <p class="text-sm font-bold text-destructive mb-2">{{ errorMessage }}</p>
+        <NuxtLink to="/projects" class="text-xs text-primary underline font-bold">Return to projects hub</NuxtLink>
       </div>
 
       <!-- Studio Layout -->

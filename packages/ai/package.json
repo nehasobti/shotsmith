@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fal-ai/client": "^1.2.3",
     "@shopshot/shared": "workspace:*",
     "zod": "^3.24.2"
   },

@@ -14,6 +14,7 @@ import {
   X,
   Loader2,
   Image as ImageIcon,
+  Zap,
 } from 'lucide-vue-next';
 
 interface ProjectItem {
@@ -118,22 +119,28 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/80">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight">Your Projects</h1>
-        <p class="text-sm text-muted-foreground mt-1">
-          Manage product visual assets, AI scenes, and marketing campaigns
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[11px] font-bold uppercase tracking-wider mb-2">
+          <FolderKanban class="h-3 w-3" />
+          <span>Studio Projects</span>
+        </div>
+        <h1 class="text-3xl font-black tracking-tight text-foreground">Projects Workspace</h1>
+        <p class="text-xs sm:text-sm text-muted-foreground mt-1">
+          Organize your product photo shoots, AI lifestyle scenes, and marketing campaigns
         </p>
       </div>
 
       <div class="flex items-center gap-3">
-        <!-- Credit summary card -->
-        <div class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-card border border-border text-card-foreground shadow-sm">
-          <Coins class="h-4 w-4 text-amber-500 fill-amber-500" />
+        <!-- Credit Summary Card -->
+        <div class="flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-card border border-border/80 text-foreground shadow-xs">
+          <div class="w-6 h-6 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-500">
+            <Zap class="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+          </div>
           <div class="text-xs">
-            <span class="text-muted-foreground">Available balance: </span>
+            <span class="text-muted-foreground block text-[10px] uppercase font-mono">Available Balance</span>
             <span class="font-bold text-foreground">
               {{ balance !== null ? `${balance} credits` : '...' }}
             </span>
@@ -143,7 +150,7 @@ onMounted(async () => {
         <button
           type="button"
           @click="isModalOpen = true"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm"
+          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold transition-all shadow-md shadow-violet-500/20 hover:scale-[1.02]"
         >
           <Plus class="h-4 w-4" />
           <span>New Project</span>
@@ -153,25 +160,25 @@ onMounted(async () => {
 
     <!-- Loading State -->
     <div v-if="isLoading" class="py-24 text-center">
-      <Loader2 class="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-      <p class="text-xs text-muted-foreground">Loading projects...</p>
+      <Loader2 class="h-9 w-9 animate-spin text-primary mx-auto mb-2" />
+      <p class="text-xs font-bold text-muted-foreground">Loading your projects...</p>
     </div>
 
     <!-- Empty Projects State -->
     <div
       v-else-if="projectsList.length === 0"
-      class="my-12 rounded-3xl border border-dashed border-border bg-card/50 p-12 text-center max-w-2xl mx-auto"
+      class="my-12 rounded-3xl border border-dashed border-border/80 bg-card/40 p-12 text-center max-w-2xl mx-auto shadow-xs"
     >
-      <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4">
-        <FolderKanban class="h-8 w-8" />
+      <div class="mx-auto flex h-18 w-18 items-center justify-center rounded-3xl bg-gradient-to-tr from-violet-600/15 to-indigo-500/15 border border-primary/20 text-primary mb-5 shadow-inner">
+        <FolderKanban class="h-9 w-9 text-primary" />
       </div>
-      <h3 class="text-lg font-bold text-foreground">No projects yet</h3>
-      <p class="text-sm text-muted-foreground mt-1.5 max-w-sm mx-auto">
-        Upload your first plain product photo to generate background cut-outs, lifestyle scenes, and marketing copy.
+      <h3 class="text-xl font-black text-foreground tracking-tight">No projects created yet</h3>
+      <p class="text-xs text-muted-foreground mt-2 max-w-sm mx-auto leading-relaxed">
+        Upload your first plain product photo to automatically extract clean cut-outs, generate 3D lifestyle scenes, and create ad copy.
       </p>
 
-      <div class="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/80 border border-border text-xs font-semibold text-secondary-foreground">
-        <Sparkles class="h-3.5 w-3.5 text-amber-500" />
+      <div class="mt-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary/80 border border-border/80 text-xs font-bold text-secondary-foreground shadow-xs">
+        <Sparkles class="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
         <span>{{ balance !== null ? `${balance} credits ready to use` : '30 credits ready to use' }}</span>
       </div>
 
@@ -179,7 +186,7 @@ onMounted(async () => {
         <button
           type="button"
           @click="isModalOpen = true"
-          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-all shadow-md"
+          class="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold transition-all shadow-lg shadow-indigo-500/25 hover:scale-105"
         >
           <Plus class="h-4 w-4" />
           <span>Create your first project</span>
@@ -188,57 +195,59 @@ onMounted(async () => {
     </div>
 
     <!-- Projects Grid -->
-    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       <div
         v-for="proj in projectsList"
         :key="proj.id"
-        class="group relative rounded-2xl border border-border bg-card p-5 hover:border-primary/50 transition-all hover:shadow-md flex flex-col justify-between"
+        class="group relative rounded-3xl border border-border/80 bg-card p-5 hover:border-primary/50 transition-all hover:shadow-xl flex flex-col justify-between"
       >
         <div>
           <!-- Cover Thumbnail -->
-          <NuxtLink :to="`/projects/${proj.id}`" class="block aspect-video w-full rounded-xl bg-muted overflow-hidden mb-4 border border-border relative">
+          <NuxtLink :to="`/projects/${proj.id}`" class="block aspect-video w-full rounded-2xl bg-zinc-950/80 overflow-hidden mb-4 border border-border/80 relative bg-checkerboard">
             <img
               v-if="proj.coverAssetUrl"
               :src="proj.coverAssetUrl"
               :alt="proj.name"
-              class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
             />
             <div v-else class="w-full h-full flex items-center justify-center text-muted-foreground">
               <ImageIcon class="h-8 w-8" />
             </div>
 
-            <div class="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-xs text-[10px] font-mono">
-              {{ proj.imageCount }} {{ proj.imageCount === 1 ? 'image' : 'images' }}
+            <div class="absolute bottom-2.5 right-2.5 px-2.5 py-0.5 rounded-full bg-black/70 text-white backdrop-blur-md text-[10px] font-mono font-bold flex items-center gap-1 border border-white/10">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <span>{{ proj.imageCount }} {{ proj.imageCount === 1 ? 'asset' : 'assets' }}</span>
             </div>
           </NuxtLink>
 
           <div class="flex items-start justify-between gap-2">
-            <NuxtLink :to="`/projects/${proj.id}`" class="font-bold text-foreground group-hover:text-primary transition-colors text-base truncate">
+            <NuxtLink :to="`/projects/${proj.id}`" class="font-extrabold text-foreground group-hover:text-primary transition-colors text-base truncate">
               {{ proj.name }}
             </NuxtLink>
 
             <button
               type="button"
               @click="handleDeleteProject(proj.id, proj.name)"
-              class="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              class="p-1.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
               title="Delete project"
             >
               <Trash2 class="h-4 w-4" />
             </button>
           </div>
 
-          <p class="text-xs text-muted-foreground line-clamp-2 mt-1">
-            {{ proj.productDescription || 'No description provided' }}
+          <p class="text-xs text-muted-foreground line-clamp-2 mt-1.5 leading-relaxed">
+            {{ proj.productDescription || 'No description provided yet.' }}
           </p>
         </div>
 
-        <div class="flex items-center justify-between mt-5 pt-3 border-t border-border text-xs text-muted-foreground">
-          <span>Updated {{ new Date(proj.updatedAt).toLocaleDateString() }}</span>
+        <div class="flex items-center justify-between mt-6 pt-3.5 border-t border-border/80 text-xs text-muted-foreground">
+          <span class="font-mono text-[11px]">Updated {{ new Date(proj.updatedAt).toLocaleDateString() }}</span>
           <NuxtLink
             :to="`/projects/${proj.id}`"
-            class="inline-flex items-center gap-1 font-semibold text-primary group-hover:translate-x-1 transition-transform"
+            class="inline-flex items-center gap-1 font-bold text-primary group-hover:translate-x-1 transition-transform"
           >
-            Open Studio <ArrowRight class="h-3.5 w-3.5" />
+            <span>Open Studio</span>
+            <ArrowRight class="h-3.5 w-3.5" />
           </NuxtLink>
         </div>
       </div>
@@ -247,60 +256,60 @@ onMounted(async () => {
     <!-- Create Project Modal Dialog -->
     <div
       v-if="isModalOpen"
-      class="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
+      class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6"
       @click.self="isModalOpen = false"
     >
-      <div class="relative max-w-lg w-full bg-card rounded-3xl border border-border p-6 shadow-2xl space-y-5">
-        <div class="flex items-center justify-between pb-3 border-b border-border">
+      <div class="relative max-w-lg w-full bg-card rounded-3xl border border-border p-6 sm:p-7 shadow-2xl space-y-6">
+        <div class="flex items-center justify-between pb-3 border-b border-border/80">
           <div>
-            <h2 class="text-lg font-bold text-foreground">Create New Project</h2>
-            <p class="text-xs text-muted-foreground">Start a creative workspace for your product</p>
+            <h2 class="text-xl font-black text-foreground tracking-tight">Create New Studio Project</h2>
+            <p class="text-xs text-muted-foreground mt-0.5">Start a dedicated creative workspace for your product</p>
           </div>
           <button
             type="button"
             @click="isModalOpen = false"
-            class="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            class="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
           >
             <X class="h-4 w-4" />
           </button>
         </div>
 
-        <div v-if="modalError" class="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-medium border border-destructive/20">
+        <div v-if="modalError" class="p-3.5 rounded-2xl bg-destructive/10 text-destructive text-xs font-bold border border-destructive/20">
           {{ modalError }}
         </div>
 
         <form @submit.prevent="handleCreateProject" class="space-y-4">
           <div>
-            <label class="block text-xs font-semibold text-foreground mb-1.5">Project Name *</label>
+            <label class="block text-xs font-bold text-foreground mb-1.5">Project / Product Name *</label>
             <input
               v-model="newProjectName"
               type="text"
               required
               placeholder="e.g. Minimalist Ceramic Mug"
-              class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+              class="w-full text-xs px-4 py-3 rounded-2xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
             />
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-foreground mb-1.5">Product Description (Optional)</label>
+            <label class="block text-xs font-bold text-foreground mb-1.5">Product Description (Optional)</label>
             <textarea
               v-model="newProjectDescription"
               rows="2"
               placeholder="e.g. Matte black ceramic mug with ergonomic bamboo handle..."
-              class="w-full text-xs p-3 rounded-xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              class="w-full text-xs p-3.5 rounded-2xl border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none shadow-xs"
             ></textarea>
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-foreground mb-1.5">Initial Product Photo (Optional)</label>
+            <label class="block text-xs font-bold text-foreground mb-1.5">Initial Product Photo (Optional)</label>
             <label
-              class="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-4 cursor-pointer hover:border-primary/50 transition-colors bg-muted/20"
+              class="flex flex-col items-center justify-center border-2 border-dashed border-border/80 rounded-2xl p-5 cursor-pointer hover:border-primary/50 transition-colors bg-muted/20"
             >
-              <UploadCloud class="h-6 w-6 text-muted-foreground mb-1.5" />
-              <span class="text-xs font-medium text-foreground">
-                {{ selectedInitialFile ? selectedInitialFile.name : 'Click to select photo (JPG, PNG, WebP)' }}
+              <UploadCloud class="h-7 w-7 text-primary mb-2" />
+              <span class="text-xs font-bold text-foreground text-center">
+                {{ selectedInitialFile ? selectedInitialFile.name : 'Click to upload your product photo' }}
               </span>
-              <span class="text-[10px] text-muted-foreground mt-0.5">Up to 10 MB</span>
+              <span class="text-[10px] text-muted-foreground mt-0.5">JPG, PNG, or WebP up to 10 MB</span>
               <input
                 type="file"
                 class="hidden"
@@ -310,21 +319,21 @@ onMounted(async () => {
             </label>
           </div>
 
-          <div class="flex items-center justify-end gap-3 pt-3 border-t border-border">
+          <div class="flex items-center justify-end gap-3 pt-3 border-t border-border/80">
             <button
               type="button"
               @click="isModalOpen = false"
-              class="px-4 py-2 rounded-xl text-xs font-semibold hover:bg-muted text-muted-foreground transition-colors"
+              class="px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-muted text-muted-foreground transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               :disabled="isSubmitting"
-              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-all disabled:opacity-50 shadow-md"
+              class="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold transition-all disabled:opacity-50 shadow-md shadow-violet-500/25"
             >
               <Loader2 v-if="isSubmitting" class="h-3.5 w-3.5 animate-spin" />
-              <span>{{ isSubmitting ? 'Creating...' : 'Create Project' }}</span>
+              <span>{{ isSubmitting ? 'Creating Project...' : 'Launch Project Studio' }}</span>
             </button>
           </div>
         </form>

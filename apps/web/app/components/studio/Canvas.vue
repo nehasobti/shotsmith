@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, computed } from 'vue';
+import { ref, watch } from 'vue';
 import {
   ZoomIn,
   ZoomOut,
@@ -8,6 +8,8 @@ import {
   UploadCloud,
   Loader2,
   Sparkles,
+  MousePointer,
+  RotateCcw,
 } from 'lucide-vue-next';
 
 interface Asset {
@@ -38,9 +40,6 @@ const dragStart = ref({ x: 0, y: 0 });
 // Compare mode (Before / After slider)
 const isCompareMode = ref(false);
 const compareSliderPosition = ref(50); // percentage 0 - 100
-const isDraggingSlider = ref(false);
-
-const containerRef = ref<HTMLElement | null>(null);
 
 const zoomIn = () => {
   scale.value = Math.min(scale.value * 1.25, 5);
@@ -60,14 +59,12 @@ const resetView = () => {
 const handleWheel = (e: WheelEvent) => {
   e.preventDefault();
   const delta = e.deltaY > 0 ? 0.9 : 1.1;
-  const newScale = Math.min(Math.max(scale.value * delta, 0.2), 5);
-  scale.value = newScale;
+  scale.value = Math.min(Math.max(scale.value * delta, 0.2), 5);
 };
 
 // Pan dragging
 const handleMouseDown = (e: MouseEvent) => {
-  if (isDraggingSlider.value) return;
-  // Dragging enabled on middle click or left click on container
+  if (isCompareMode.value) return;
   isDragging.value = true;
   dragStart.value = {
     x: e.clientX - translateX.value,
@@ -113,8 +110,7 @@ watch(
 
 <template>
   <div
-    ref="containerRef"
-    class="relative w-full h-full min-h-[500px] flex-1 bg-muted/40 rounded-2xl border border-border overflow-hidden select-none flex items-center justify-center cursor-grab active:cursor-grabbing"
+    class="relative w-full h-full min-h-[520px] flex-1 bg-zinc-950/95 dark:bg-black/90 rounded-3xl border border-border/80 overflow-hidden select-none flex items-center justify-center cursor-grab active:cursor-grabbing shadow-inner transition-colors"
     @wheel="handleWheel"
     @mousedown="handleMouseDown"
     @mousemove="handleMouseMove"
@@ -124,39 +120,29 @@ watch(
     @dragleave="isDragOver = false"
     @drop.prevent="handleDrop"
   >
-    <!-- Checkerboard pattern for transparent PNG backgrounds -->
-    <div
-      class="absolute inset-0 pointer-events-none opacity-25 dark:opacity-10"
-      style="
-        background-image: linear-gradient(45deg, #888 25%, transparent 25%),
-          linear-gradient(-45deg, #888 25%, transparent 25%),
-          linear-gradient(45deg, transparent 75%, #888 75%),
-          linear-gradient(-45deg, transparent 75%, #888 75%);
-        background-size: 20px 20px;
-        background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-      "
-    ></div>
+    <!-- Background studio grid & transparency checkerboard pattern -->
+    <div class="absolute inset-0 pointer-events-none opacity-40 bg-checkerboard"></div>
 
     <!-- Empty state: Upload Dropzone when no active asset -->
     <div
       v-if="!activeAsset"
-      class="relative z-10 flex flex-col items-center justify-center p-8 max-w-md text-center"
+      class="relative z-10 flex flex-col items-center justify-center p-10 max-w-md text-center"
     >
       <div
-        class="h-16 w-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mb-4 transition-transform hover:scale-105"
+        class="h-20 w-20 rounded-3xl bg-gradient-to-tr from-violet-600/20 to-indigo-500/20 border border-violet-500/30 flex items-center justify-center text-primary mb-5 shadow-lg shadow-violet-500/10 transition-transform hover:scale-105"
       >
-        <UploadCloud class="h-8 w-8" />
+        <UploadCloud class="h-10 w-10 text-primary" />
       </div>
-      <h3 class="text-base font-bold text-foreground">Upload your product photo</h3>
-      <p class="text-xs text-muted-foreground mt-1.5 max-w-xs">
-        Drag and drop your JPG, PNG, or WebP image here (up to 10 MB).
+      <h3 class="text-lg font-bold text-white tracking-tight">Upload your product photo</h3>
+      <p class="text-xs text-zinc-400 mt-2 max-w-xs leading-relaxed">
+        Drop your smartphone or catalog photo here. Supports high-resolution JPG, PNG, and WebP up to 10 MB.
       </p>
 
       <label
-        class="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold cursor-pointer hover:bg-primary/90 transition-all shadow-sm"
+        class="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-bold cursor-pointer hover:from-violet-500 hover:to-indigo-500 transition-all shadow-lg shadow-indigo-500/25 hover:scale-105"
       >
         <UploadCloud class="h-4 w-4" />
-        <span>Select photo</span>
+        <span>Select photo to begin</span>
         <input
           type="file"
           class="hidden"
@@ -177,21 +163,23 @@ watch(
     >
       <!-- Standard Single View -->
       <template v-if="!isCompareMode || !originalAsset || originalAsset.id === activeAsset.id">
-        <img
-          :src="activeAsset.blobUrl"
-          :alt="activeAsset.kind"
-          class="max-w-[70vw] max-h-[65vh] object-contain rounded-lg shadow-lg pointer-events-none drop-shadow-md"
-          draggable="false"
-        />
+        <div class="relative group">
+          <img
+            :src="activeAsset.blobUrl"
+            :alt="activeAsset.kind"
+            class="max-w-[68vw] max-h-[66vh] object-contain rounded-xl shadow-2xl pointer-events-none drop-shadow-2xl"
+            draggable="false"
+          />
+        </div>
       </template>
 
       <!-- Before / After Compare Split View -->
       <template v-else>
-        <div class="relative max-w-[70vw] max-h-[65vh] overflow-hidden rounded-lg shadow-lg">
+        <div class="relative max-w-[68vw] max-h-[66vh] overflow-hidden rounded-xl shadow-2xl select-none">
           <!-- After (Current active generation) -->
           <img
             :src="activeAsset.blobUrl"
-            class="max-w-[70vw] max-h-[65vh] object-contain pointer-events-none"
+            class="max-w-[68vw] max-h-[66vh] object-contain pointer-events-none"
             draggable="false"
           />
 
@@ -202,22 +190,31 @@ watch(
           >
             <img
               :src="originalAsset.blobUrl"
-              class="max-w-[70vw] max-h-[65vh] object-contain pointer-events-none"
+              class="max-w-[68vw] max-h-[66vh] object-contain pointer-events-none"
               draggable="false"
             />
           </div>
 
           <!-- Slider Line -->
           <div
-            class="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_8px_rgba(0,0,0,0.5)] cursor-ew-resize z-20 pointer-events-none"
+            class="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_10px_rgba(0,0,0,0.8)] cursor-ew-resize z-20 pointer-events-none"
             :style="{ left: `${compareSliderPosition}%` }"
           >
             <div
-              class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-white text-black shadow-md flex items-center justify-center text-[10px] font-bold"
+              class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-white text-zinc-950 shadow-2xl flex items-center justify-center text-xs font-black"
             >
               ↔
             </div>
           </div>
+
+          <!-- Slider input trigger -->
+          <input
+            v-model="compareSliderPosition"
+            type="range"
+            min="0"
+            max="100"
+            class="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30"
+          />
         </div>
       </template>
     </div>
@@ -225,40 +222,40 @@ watch(
     <!-- Drag-over overlay -->
     <div
       v-if="isDragOver"
-      class="absolute inset-0 bg-primary/20 backdrop-blur-xs border-2 border-dashed border-primary flex items-center justify-center z-30 pointer-events-none"
+      class="absolute inset-0 bg-violet-600/20 backdrop-blur-xs border-2 border-dashed border-violet-500 flex items-center justify-center z-30 pointer-events-none"
     >
-      <div class="bg-card px-4 py-2 rounded-xl shadow-lg border border-border text-xs font-bold text-primary flex items-center gap-2">
+      <div class="bg-card px-5 py-2.5 rounded-2xl shadow-xl border border-border text-xs font-bold text-primary flex items-center gap-2">
         <UploadCloud class="h-4 w-4" />
-        <span>Drop to upload product photo</span>
+        <span>Drop to upload into Studio</span>
       </div>
     </div>
 
     <!-- Uploading indicator -->
     <div
       v-if="isUploading"
-      class="absolute inset-0 bg-background/60 backdrop-blur-xs flex flex-col items-center justify-center z-30"
+      class="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center z-30"
     >
-      <Loader2 class="h-8 w-8 animate-spin text-primary mb-2" />
-      <p class="text-xs font-semibold text-foreground">Uploading original photo...</p>
+      <Loader2 class="h-9 w-9 animate-spin text-primary mb-2" />
+      <p class="text-xs font-bold text-white">Uploading product asset...</p>
     </div>
 
-    <!-- Floating Canvas Controls -->
+    <!-- Floating Studio Toolbar at Bottom -->
     <div
       v-if="activeAsset"
-      class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border shadow-md"
+      class="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900/90 backdrop-blur-xl border border-white/10 text-white shadow-2xl"
     >
       <!-- Zoom Out -->
       <button
         type="button"
         @click.stop="zoomOut"
-        class="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+        class="p-1.5 rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors"
         title="Zoom Out"
       >
         <ZoomOut class="h-4 w-4" />
       </button>
 
       <!-- Zoom display -->
-      <span class="text-xs font-mono font-medium px-1 text-muted-foreground min-w-[42px] text-center">
+      <span class="text-xs font-mono font-bold px-1 text-zinc-300 min-w-[44px] text-center">
         {{ Math.round(scale * 100) }}%
       </span>
 
@@ -266,46 +263,37 @@ watch(
       <button
         type="button"
         @click.stop="zoomIn"
-        class="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+        class="p-1.5 rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors"
         title="Zoom In"
       >
         <ZoomIn class="h-4 w-4" />
       </button>
 
-      <div class="w-px h-4 bg-border mx-1"></div>
+      <div class="w-px h-4 bg-white/20 mx-0.5"></div>
 
       <!-- Reset / Fit -->
       <button
         type="button"
         @click.stop="resetView"
-        class="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-        title="Reset Zoom & Pan"
+        class="p-1.5 rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors"
+        title="Fit to screen"
       >
-        <Maximize2 class="h-4 w-4" />
+        <RotateCcw class="h-3.5 w-3.5" />
       </button>
 
-      <!-- Before / After Toggle (only available if we have original asset) -->
+      <!-- Before / After Compare Toggle -->
       <template v-if="originalAsset && originalAsset.id !== activeAsset.id">
-        <div class="w-px h-4 bg-border mx-1"></div>
+        <div class="w-px h-4 bg-white/20 mx-0.5"></div>
         <button
           type="button"
           @click.stop="isCompareMode = !isCompareMode"
-          class="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors"
-          :class="isCompareMode ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'"
+          class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all"
+          :class="isCompareMode ? 'bg-primary text-white shadow-md shadow-primary/30' : 'hover:bg-white/10 text-zinc-300'"
           title="Toggle Before / After Split Compare"
         >
           <SplitSquareVertical class="h-3.5 w-3.5" />
           <span>Compare</span>
         </button>
-
-        <input
-          v-if="isCompareMode"
-          v-model="compareSliderPosition"
-          type="range"
-          min="0"
-          max="100"
-          class="w-20 accent-primary cursor-pointer"
-        />
       </template>
     </div>
   </div>
