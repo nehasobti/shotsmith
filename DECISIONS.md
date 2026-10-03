@@ -22,3 +22,18 @@ This document records architectural, technical, and implementation decisions mad
 5. **Styling and UI**:
    - Configured Tailwind CSS with Lucide icons (`lucide-vue-next`).
    - Implemented dark mode support with system detection and manual toggle persisted in storage.
+
+## Phase 2: Projects & Uploads Decisions
+
+1. **Client Uploads & Local Development Resiliency**:
+   - Integrated `@vercel/blob/client` for direct browser-to-cloud file uploads, bypassing serverless request body limits.
+   - Implemented an automatic local/offline fallback in `useUpload` and `/api/uploads` that supports direct file upload when `BLOB_READ_WRITE_TOKEN` is not configured, allowing uninterrupted development and local verification.
+
+2. **Studio Canvas Interactive Navigation**:
+   - Built a high-performance interactive canvas component supporting mouse wheel zooming (20% to 500%), smooth panning, and auto-centering.
+   - Added a CSS checkerboard background pattern to visually inspect background-removed transparent PNGs accurately.
+   - Implemented a Before/After split compare slider allowing direct visual comparison between the working image and the project's original asset.
+
+3. **Gallery & Asset Management**:
+   - Created a dedicated gallery route (`/projects/:id/gallery`) with instant kind filtering (`original`, `cutout`, `scene`, `edit`, `upscale`), favorite toggling, asset deletion, and full-screen lightbox modal.
+   - Ensured asset deletion cleans up storage blobs and resets project cover references.

@@ -15,6 +15,7 @@ export default defineEventHandler(async (event) => {
       createdAt: projects.createdAt,
       updatedAt: projects.updatedAt,
       imageCount: sql<number>`(select count(*) from ${assets} where ${assets.projectId} = ${projects.id})::int`,
+      coverAssetUrl: sql<string | null>`(select blob_url from ${assets} where ${assets.id} = ${projects.coverAssetId} limit 1)`,
     })
     .from(projects)
     .where(eq(projects.userId, userId))
