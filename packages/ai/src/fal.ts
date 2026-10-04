@@ -1,6 +1,7 @@
 import { fal } from '@fal-ai/client';
 import { AI_MODELS } from './config';
 import type { MagicEditParams, RemoveBgResult, UpscaleParams } from './types';
+import { smartRemoveBackground, smartUpscale } from './local-processor';
 
 export class FalAiProvider {
   constructor(apiKey?: string) {
@@ -47,12 +48,13 @@ export class FalAiProvider {
       };
     } catch {
       // Offline fallback
+      const cutout = await smartRemoveBackground(imageUrl);
       return {
         requestId: 'mock-fal-' + Date.now(),
         result: {
-          imageUrl: imageUrl,
-          width: 1024,
-          height: 1024,
+          imageUrl: cutout.dataUrl,
+          width: cutout.width,
+          height: cutout.height,
           costUsd: 0.005,
         },
       };
@@ -100,13 +102,14 @@ export class FalAiProvider {
       };
     } catch {
       // Offline fallback
-      const mult = params.scale || 2;
+      const mult = (params.scale === 4 ? 4 : 2) as 2 | 4;
+      const upscaled = await smartUpscale(params.imageUrl, mult);
       return {
         requestId: 'mock-upscale-' + Date.now(),
         result: {
-          imageUrl: params.imageUrl,
-          width: 1024 * mult,
-          height: 1024 * mult,
+          imageUrl: upscaled.dataUrl,
+          width: upscaled.width,
+          height: upscaled.height,
           costUsd: 0.01,
         },
       };

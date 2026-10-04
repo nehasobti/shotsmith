@@ -4,3 +4,4 @@ export * from './mock';
 export * from './fal';
 export * from './gemini';
 export * from './factory';
+export * from './local-processor';

@@ -9,18 +9,26 @@ import type {
   UpscaleParams,
 } from './types';
 import type { CopyOutput } from '@shopshot/shared';
+import {
+  smartRemoveBackground,
+  smartGenerateScenes,
+  smartMagicEdit,
+  smartUpscale,
+} from './local-processor';
 
 export class MockAiProvider implements AiProvider {
   async removeBackground(
-    _imageUrl: string,
+    imageUrl: string,
     _options?: { webhookUrl?: string }
   ): Promise<{ requestId: string; result?: RemoveBgResult }> {
+    const cutout = await smartRemoveBackground(imageUrl);
+
     return {
       requestId: 'mock-req-' + Math.random().toString(36).substring(7),
       result: {
-        imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1024&q=80',
-        width: 1024,
-        height: 1024,
+        imageUrl: cutout.dataUrl,
+        width: cutout.width,
+        height: cutout.height,
         costUsd: 0.005,
       },
     };
@@ -30,30 +38,23 @@ export class MockAiProvider implements AiProvider {
     params: SceneGenParams
   ): Promise<{ images: Array<{ url: string; width: number; height: number }>; costUsd: number }> {
     const count = Math.min(params.variationCount || 4, 4);
-    const mockUrls = [
-      'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1024&q=80',
-      'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=1024&q=80',
-      'https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=1024&q=80',
-      'https://images.unsplash.com/photo-1560343090-f0409e92791a?auto=format&fit=crop&w=1024&q=80',
-    ];
+    const scenes = await smartGenerateScenes(params.imageUrl, count);
 
     return {
-      images: mockUrls.slice(0, count).map((url) => ({
-        url,
-        width: 1024,
-        height: 1024,
-      })),
-      costUsd: 0.04,
+      images: scenes,
+      costUsd: 0.01 * count,
     };
   }
 
   async magicEdit(
-    _params: MagicEditParams
+    params: MagicEditParams
   ): Promise<{ imageUrl: string; width: number; height: number; costUsd: number }> {
+    const edited = await smartMagicEdit(params.imageUrl, params.instruction);
+
     return {
-      imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1024&q=80',
-      width: 1024,
-      height: 1024,
+      imageUrl: edited.dataUrl,
+      width: edited.width,
+      height: edited.height,
       costUsd: 0.02,
     };
   }
@@ -62,13 +63,15 @@ export class MockAiProvider implements AiProvider {
     params: UpscaleParams,
     _options?: { webhookUrl?: string }
   ): Promise<{ requestId: string; result?: { imageUrl: string; width: number; height: number; costUsd: number } }> {
-    const scaleFactor = params.scale || 2;
+    const scaleFactor = (params.scale === 4 ? 4 : 2) as 2 | 4;
+    const upscaled = await smartUpscale(params.imageUrl, scaleFactor);
+
     return {
       requestId: 'mock-upscale-' + Math.random().toString(36).substring(7),
       result: {
-        imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=2048&q=80',
-        width: 1024 * scaleFactor,
-        height: 1024 * scaleFactor,
+        imageUrl: upscaled.dataUrl,
+        width: upscaled.width,
+        height: upscaled.height,
         costUsd: 0.01,
       },
     };
