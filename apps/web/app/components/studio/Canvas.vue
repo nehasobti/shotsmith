@@ -110,7 +110,7 @@ watch(
 
 <template>
   <div
-    class="relative w-full h-full min-h-[520px] flex-1 bg-zinc-950/95 dark:bg-black/90 rounded-3xl border border-border/80 overflow-hidden select-none flex items-center justify-center cursor-grab active:cursor-grabbing shadow-inner transition-colors"
+    class="relative w-full h-full min-h-[360px] flex-1 bg-zinc-950/95 dark:bg-black/90 rounded-3xl border border-border/80 overflow-hidden select-none flex items-center justify-center cursor-grab active:cursor-grabbing shadow-inner transition-colors order-1 md:order-2"
     @wheel="handleWheel"
     @mousedown="handleMouseDown"
     @mousemove="handleMouseMove"
@@ -167,7 +167,7 @@ watch(
           <img
             :src="activeAsset.blobUrl"
             :alt="activeAsset.kind"
-            class="max-w-[68vw] max-h-[66vh] object-contain rounded-xl shadow-2xl pointer-events-none drop-shadow-2xl"
+            class="max-w-[85vw] md:max-w-[45vw] lg:max-w-[50vw] max-h-[65vh] object-contain rounded-xl shadow-2xl pointer-events-none drop-shadow-2xl"
             draggable="false"
           />
         </div>
@@ -175,11 +175,11 @@ watch(
 
       <!-- Before / After Compare Split View -->
       <template v-else>
-        <div class="relative max-w-[68vw] max-h-[66vh] overflow-hidden rounded-xl shadow-2xl select-none">
+        <div class="relative max-w-[85vw] md:max-w-[45vw] lg:max-w-[50vw] max-h-[65vh] overflow-hidden rounded-xl shadow-2xl select-none">
           <!-- After (Current active generation) -->
           <img
             :src="activeAsset.blobUrl"
-            class="max-w-[68vw] max-h-[66vh] object-contain pointer-events-none"
+            class="max-w-full max-h-[65vh] object-contain pointer-events-none"
             draggable="false"
           />
 
@@ -190,7 +190,7 @@ watch(
           >
             <img
               :src="originalAsset.blobUrl"
-              class="max-w-[68vw] max-h-[66vh] object-contain pointer-events-none"
+              class="max-w-full max-h-[65vh] object-contain pointer-events-none"
               draggable="false"
             />
           </div>

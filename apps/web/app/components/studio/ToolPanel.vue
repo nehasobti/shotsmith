@@ -85,7 +85,7 @@ const handleTriggerMagicEdit = () => {
 </script>
 
 <template>
-  <aside class="w-full lg:w-84 shrink-0 bg-card border border-border/80 rounded-3xl flex flex-col overflow-hidden shadow-sm">
+  <aside class="w-full md:w-80 shrink-0 bg-card border border-border/80 rounded-3xl flex flex-col overflow-hidden shadow-sm h-full min-h-0 order-2 md:order-1">
     <!-- Header Tabs -->
     <div class="grid grid-cols-4 p-1.5 bg-muted/40 border-b border-border/80 text-xs font-semibold gap-1">
       <button
@@ -130,7 +130,7 @@ const handleTriggerMagicEdit = () => {
     </div>
 
     <!-- Content Panel -->
-    <div class="p-4 flex-1 flex flex-col overflow-y-auto space-y-4">
+    <div class="p-4 flex-1 flex flex-col overflow-y-auto space-y-4 min-h-0">
       <!-- 1. Remove Background Tab -->
       <div v-if="activeTab === 'remove_bg'" class="space-y-4 flex-1 flex flex-col">
         <div>

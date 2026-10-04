@@ -52,7 +52,7 @@ const getKindBadge = (kind: string) => {
 </script>
 
 <template>
-  <aside class="w-full lg:w-72 shrink-0 bg-card border border-border/80 rounded-3xl flex flex-col overflow-hidden shadow-sm">
+  <aside class="w-full md:w-64 lg:w-72 shrink-0 bg-card border border-border/80 rounded-3xl flex flex-col overflow-hidden shadow-sm h-full min-h-0 order-3">
     <div class="p-4 border-b border-border/80 flex items-center justify-between bg-muted/20">
       <div class="flex items-center gap-2">
         <div class="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
@@ -65,7 +65,7 @@ const getKindBadge = (kind: string) => {
       </span>
     </div>
 
-    <div class="p-3 flex-1 overflow-y-auto space-y-2.5">
+    <div class="p-3 flex-1 overflow-y-auto space-y-2.5 min-h-0">
       <!-- Running Job Shimmer Placeholder -->
       <div
         v-if="isRunningJob"

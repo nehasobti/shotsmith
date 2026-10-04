@@ -384,7 +384,7 @@ onMounted(async () => {
     </div>
 
     <!-- Main Workspace Area: Tools Left, Canvas Center, Results Right -->
-    <div class="flex-1 p-3 sm:p-4 overflow-hidden flex flex-col lg:flex-row gap-3">
+    <div class="flex-1 p-2 sm:p-3 md:p-4 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row gap-3 min-h-0">
       <!-- Loading view -->
       <div v-if="isLoading" class="flex-1 flex flex-col items-center justify-center">
         <Loader2 class="h-9 w-9 animate-spin text-primary mb-3" />
