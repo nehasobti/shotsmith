@@ -76,6 +76,12 @@ const handleTriggerUpscale = () => {
     scale: upscaleScale.value,
   });
 };
+
+const handleTriggerMagicEdit = () => {
+  emit('start-magic-edit', {
+    instruction: editInstruction.value.trim(),
+  });
+};
 </script>
 
 <template>
@@ -314,6 +320,7 @@ const handleTriggerUpscale = () => {
         <div class="mt-auto pt-4 border-t border-border/80">
           <button
             type="button"
+            @click="handleTriggerMagicEdit"
             :disabled="!hasActiveAsset || !editInstruction.trim() || (userCredits !== null && userCredits < CREDIT_COSTS.edit)"
             class="w-full flex items-center justify-between py-3 px-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold transition-all disabled:opacity-50 shadow-md shadow-indigo-500/20"
           >

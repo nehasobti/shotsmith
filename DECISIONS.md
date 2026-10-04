@@ -52,3 +52,42 @@ This document records architectural, technical, and implementation decisions mad
    - Created `useJobs` composable offering reactive job polling, active job tracking, and auto-refresh of project assets.
    - Added Studio one-click "Remove Background" action with credit balance verification, active task loading states, and instant cutout rendering on the canvas.
 
+## Phase 4: Scenes, Magic Edit & Upscale Decisions
+
+1. **AI Provider Multimodal Integration**:
+   - Integrated Google Gemini via `@ai-sdk/google` alongside Fal FLUX for scene generation and magic edit.
+   - Implemented 5 tested scene presets (`marble_counter`, `wooden_table`, `beach`, `studio_gradient`, `festive`) that strictly instruct the models to maintain product contours, textures, labels, and geometry intact.
+   - Supported up to 4 parallel scene variations charged at 4 credits.
+   - Added 2× and 4× super-resolution upscaling via Fal ESRGAN model charged at 2 credits.
+
+2. **Studio Tooling & Lineage**:
+   - Wired ToolPanel tabs for Scene, Magic Edit, and Upscaling directly into `useJobs` and Inngest.
+   - Maintained project asset lineage with `parent_asset_id` and newest-first results filmstrip with instant canvas switching.
+
+## Phase 5: Ad Copy & Marketplace Exports Decisions
+
+1. **Multilingual Structured Copywriter**:
+   - Built `/api/projects/:id/copy` powered by Gemini text model using structured outputs (`generateObject`), generating title, description, 5 selling bullet points, Instagram caption, and 10 targeted hashtags in 4 brand tones and 6 languages.
+   - Added free Gemini Vision auto-describe endpoint `/api/assets/:id/describe` to automatically detect product characteristics from photos.
+   - Built a dedicated copy studio (`/projects/:id/copy`) with one-click clipboard copying for all fields and generation history management.
+
+2. **Marketplace Batch Exports via Sharp**:
+   - Built `/api/exports` using Sharp and Archiver to bundle selected assets into 5 commercial preset formats:
+     - Instagram Post (1080×1080)
+     - Instagram Story (1080×1920)
+     - Amazon Main (2000×2000, pure white `#ffffff`, product filling ~85%)
+     - Shopify Card (2048×2048)
+     - Web Banner (1920×600)
+   - Packages all formats into an organized ZIP bundle without consuming credits.
+   - Enhanced the project gallery (`/projects/:id/gallery`) with multi-select image selection and batch ZIP export modal.
+
+## Phase 6: Polish, Launch & Enterprise Hardening Decisions
+
+1. **Security & Production Hardening**:
+   - Configured robust Content Security Policy (CSP), X-Frame-Options (`DENY`), X-Content-Type-Options (`nosniff`), and Referrer-Policy headers in `nuxt.config.ts`.
+   - Built `@upstash/ratelimit` rate limiting in `apps/web/server/lib/ratelimit.ts` (10 jobs/min, 5 copy/min, 10 logins/min) with graceful in-memory token bucket fallback for offline/development environments.
+
+2. **Demo Lifecycle & E2E Testing**:
+   - Implemented nightly Inngest cron job `resetDemoAccount` (`0 0 * * *`) that checks `demo@shopshot.dev` and tops up credits to 30 every midnight.
+   - Added Playwright end-to-end test suite (`apps/web/tests/e2e/workflow.spec.ts`) validating user registration, navigation, studio workspace, ad copy generator, and gallery export.
+

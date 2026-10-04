@@ -2,7 +2,7 @@ import { inngest } from '../client';
 import { db, generationJobs, assets } from '../../db';
 import { eq } from 'drizzle-orm';
 import { refundCredits } from '../../lib/credits';
-import { getFalProvider } from '@shopshot/ai';
+import { createAiProvider } from '@shopshot/ai';
 
 export const processImageJob = inngest.createFunction(
   {
@@ -18,7 +18,7 @@ export const processImageJob = inngest.createFunction(
   },
   { event: 'image/job.requested' },
   async ({ event, step }) => {
-    const { jobId, userId, projectId, sourceAssetId, type, creditsCharged } = event.data;
+    const { jobId, userId, projectId, sourceAssetId, type, params, creditsCharged } = event.data;
 
     try {
       // Step 1: Mark job as running
@@ -46,75 +46,22 @@ export const processImageJob = inngest.createFunction(
         return asset;
       });
 
-      // Step 3: Run the AI operation
-      let resultImageUrl = '';
-      let resultWidth = sourceAsset.width || 1024;
-      let resultHeight = sourceAsset.height || 1024;
-      let costUsd = 0.005;
+      const provider = createAiProvider();
+      let createdAssetIds: string[] = [];
+      let totalCostUsd = 0.005;
 
+      // Step 3: Run the requested AI operation
       if (type === 'remove_bg') {
-        const falProvider = getFalProvider();
-        const webhookBaseUrl = process.env.FAL_WEBHOOK_BASE_URL;
+        const bgResult = await step.run('run-remove-bg', async () => {
+          return await provider.removeBackground(sourceAsset.blobUrl);
+        });
 
-        if (process.env.AI_MOCK === '1' || !process.env.FAL_KEY) {
-          // Mock mode: Return high-quality transparent PNG sample
-          const mockRes = await falProvider.removeBackground(sourceAsset.blobUrl);
-          resultImageUrl = mockRes.result?.imageUrl || sourceAsset.blobUrl;
-          resultWidth = mockRes.result?.width || resultWidth;
-          resultHeight = mockRes.result?.height || resultHeight;
-          costUsd = mockRes.result?.costUsd || costUsd;
-        } else if (webhookBaseUrl) {
-          // Production: submit to queue with webhook URL and wait for event
-          const submitRes = await step.run('submit-fal-queue', async () => {
-            const webhookUrl = `${webhookBaseUrl}/api/webhooks/fal`;
-            const res = await falProvider.removeBackground(sourceAsset.blobUrl, {
-              webhookUrl,
-            });
+        const imageUrl = bgResult.result?.imageUrl || sourceAsset.blobUrl;
+        const width = bgResult.result?.width || sourceAsset.width || 1024;
+        const height = bgResult.result?.height || sourceAsset.height || 1024;
+        totalCostUsd = bgResult.result?.costUsd || 0.005;
 
-            await db
-              .update(generationJobs)
-              .set({ externalRequestId: res.requestId })
-              .where(eq(generationJobs.id, jobId));
-
-            return res;
-          });
-
-          // Wait for webhook callback event
-          const falEvent = await step.waitForEvent('wait-for-fal-webhook', {
-            event: 'fal/result',
-            timeout: '10m',
-            match: 'async.data.requestId == event.data.requestId',
-          });
-
-          if (!falEvent || !falEvent.data?.payload?.image?.url) {
-            throw new Error('Fal background removal webhook did not return an image URL');
-          }
-
-          resultImageUrl = falEvent.data.payload.image.url;
-          resultWidth = falEvent.data.payload.image.width || resultWidth;
-          resultHeight = falEvent.data.payload.image.height || resultHeight;
-        } else {
-          // Local development without webhook URL: run direct subscription
-          const directRes = await step.run('fal-direct-call', async () => {
-            return await falProvider.removeBackground(sourceAsset.blobUrl);
-          });
-
-          if (!directRes.result?.imageUrl) {
-            throw new Error('Failed to extract transparent cut-out from fal.ai');
-          }
-
-          resultImageUrl = directRes.result.imageUrl;
-          resultWidth = directRes.result.width || resultWidth;
-          resultHeight = directRes.result.height || resultHeight;
-          costUsd = directRes.result.costUsd || costUsd;
-        }
-      } else {
-        throw new Error(`Unsupported job type in processImageJob: ${type}`);
-      }
-
-      // Step 4: Save result asset to database
-      const createdAsset = await step.run('save-result-asset', async () => {
-        const [asset] = await db
+        const [createdAsset] = await db
           .insert(assets)
           .values({
             projectId,
@@ -122,33 +69,130 @@ export const processImageJob = inngest.createFunction(
             parentAssetId: sourceAssetId,
             jobId,
             kind: 'cutout',
-            blobUrl: resultImageUrl,
+            blobUrl: imageUrl,
             blobPathname: `users/${userId}/projects/${projectId}/cutouts/${Date.now()}.png`,
-            width: resultWidth,
-            height: resultHeight,
+            width,
+            height,
             mimeType: 'image/png',
           })
           .returning();
 
-        return asset;
-      });
+        if (createdAsset) createdAssetIds.push(createdAsset.id);
+      } else if (type === 'scene') {
+        const scenePrompt = params?.prompt || 'Clean minimal studio setting with soft lighting';
+        const variationCount = Math.min(Math.max(params?.variationCount || 4, 1), 4);
 
-      // Step 5: Mark job as succeeded
+        const sceneResult = await step.run('run-scene-generation', async () => {
+          return await provider.generateScenes({
+            imageUrl: sourceAsset.blobUrl,
+            prompt: scenePrompt,
+            variationCount,
+          });
+        });
+
+        totalCostUsd = sceneResult.costUsd || 0.03 * variationCount;
+
+        for (const [idx, img] of sceneResult.images.entries()) {
+          const [createdAsset] = await db
+            .insert(assets)
+            .values({
+              projectId,
+              userId,
+              parentAssetId: sourceAssetId,
+              jobId,
+              kind: 'scene',
+              blobUrl: img.url,
+              blobPathname: `users/${userId}/projects/${projectId}/scenes/${Date.now()}_${idx}.jpg`,
+              width: img.width || 1024,
+              height: img.height || 1024,
+              mimeType: 'image/jpeg',
+            })
+            .returning();
+
+          if (createdAsset) createdAssetIds.push(createdAsset.id);
+        }
+      } else if (type === 'edit') {
+        const instruction = params?.instruction || 'Refine lighting and background';
+        const maskUrl = params?.maskUrl || sourceAsset.blobUrl;
+
+        const editResult = await step.run('run-magic-edit', async () => {
+          return await provider.magicEdit({
+            imageUrl: sourceAsset.blobUrl,
+            maskUrl,
+            instruction,
+          });
+        });
+
+        totalCostUsd = editResult.costUsd || 0.02;
+
+        const [createdAsset] = await db
+          .insert(assets)
+          .values({
+            projectId,
+            userId,
+            parentAssetId: sourceAssetId,
+            jobId,
+            kind: 'edit',
+            blobUrl: editResult.imageUrl,
+            blobPathname: `users/${userId}/projects/${projectId}/edits/${Date.now()}.jpg`,
+            width: editResult.width || 1024,
+            height: editResult.height || 1024,
+            mimeType: 'image/jpeg',
+          })
+          .returning();
+
+        if (createdAsset) createdAssetIds.push(createdAsset.id);
+      } else if (type === 'upscale') {
+        const scale = (params?.scale === 4 ? 4 : 2) as 2 | 4;
+
+        const upscaleResult = await step.run('run-upscale', async () => {
+          return await provider.upscale({
+            imageUrl: sourceAsset.blobUrl,
+            scale,
+          });
+        });
+
+        const imageUrl = upscaleResult.result?.imageUrl || sourceAsset.blobUrl;
+        const width = upscaleResult.result?.width || (sourceAsset.width || 1024) * scale;
+        const height = upscaleResult.result?.height || (sourceAsset.height || 1024) * scale;
+        totalCostUsd = upscaleResult.result?.costUsd || 0.01;
+
+        const [createdAsset] = await db
+          .insert(assets)
+          .values({
+            projectId,
+            userId,
+            parentAssetId: sourceAssetId,
+            jobId,
+            kind: 'upscale',
+            blobUrl: imageUrl,
+            blobPathname: `users/${userId}/projects/${projectId}/upscales/${Date.now()}.png`,
+            width,
+            height,
+            mimeType: 'image/png',
+          })
+          .returning();
+
+        if (createdAsset) createdAssetIds.push(createdAsset.id);
+      } else {
+        throw new Error(`Unsupported job type in processImageJob: ${type}`);
+      }
+
+      // Step 4: Mark job as succeeded
       await step.run('mark-job-succeeded', async () => {
         await db
           .update(generationJobs)
           .set({
             status: 'succeeded',
             finishedAt: new Date(),
-            costUsd: costUsd.toString(),
+            costUsd: totalCostUsd.toString(),
           })
           .where(eq(generationJobs.id, jobId));
       });
 
       return {
         success: true,
-        assetId: createdAsset?.id,
-        imageUrl: resultImageUrl,
+        assetIds: createdAssetIds,
       };
     } catch (error: any) {
       console.error(`[Inngest] Job ${jobId} failed:`, error);

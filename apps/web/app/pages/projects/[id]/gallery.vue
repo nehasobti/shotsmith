@@ -11,13 +11,18 @@ import {
   Trash2,
   ExternalLink,
   Eye,
-  Filter,
-  X,
+  CheckSquare,
+  Square,
   UploadCloud,
   Loader2,
-  Layers,
+  Archive,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  PackageCheck,
 } from 'lucide-vue-next';
 import { useUpload } from '~/composables/useUpload';
+import { EXPORT_PRESETS, type ExportPreset } from '@shopshot/shared';
 
 interface Asset {
   id: string;
@@ -44,7 +49,22 @@ const selectedKindFilter = ref<string>('all');
 const showFavoritesOnly = ref(false);
 const previewAsset = ref<Asset | null>(null);
 
+// Multi-select and Export state
+const isSelectionMode = ref(false);
+const selectedAssetIds = ref<string[]>([]);
+const showExportModal = ref(false);
+const isExporting = ref(false);
+const selectedPresetIds = ref<string[]>(['instagram_post', 'amazon_main', 'shopify']);
+const toastMessage = ref<{ type: 'success' | 'error'; text: string } | null>(null);
+
 const { isUploading, uploadProductPhoto } = useUpload();
+
+const showToast = (type: 'success' | 'error', text: string) => {
+  toastMessage.value = { type, text };
+  setTimeout(() => {
+    toastMessage.value = null;
+  }, 4000);
+};
 
 const fetchGallery = async () => {
   isLoading.value = true;
@@ -74,6 +94,23 @@ const filteredAssets = computed(() => {
   });
 });
 
+const toggleSelectAsset = (assetId: string) => {
+  if (selectedAssetIds.value.includes(assetId)) {
+    selectedAssetIds.value = selectedAssetIds.value.filter((id) => id !== assetId);
+  } else {
+    selectedAssetIds.value.push(assetId);
+  }
+};
+
+const selectAllVisible = () => {
+  selectedAssetIds.value = filteredAssets.value.map((a) => a.id);
+};
+
+const clearSelection = () => {
+  selectedAssetIds.value = [];
+  isSelectionMode.value = false;
+};
+
 const handleToggleFavorite = async (asset: Asset) => {
   const targetState = !asset.isFavorite;
   try {
@@ -92,6 +129,7 @@ const handleDeleteAsset = async (assetId: string) => {
   try {
     await $fetch(`/api/assets/${assetId}`, { method: 'DELETE' });
     assetsList.value = assetsList.value.filter((a) => a.id !== assetId);
+    selectedAssetIds.value = selectedAssetIds.value.filter((id) => id !== assetId);
     if (previewAsset.value?.id === assetId) previewAsset.value = null;
   } catch (err) {
     console.error('Failed to delete asset', err);
@@ -104,10 +142,45 @@ const handleUploadFile = async (e: Event) => {
     try {
       await uploadProductPhoto(target.files[0], projectId.value);
       await fetchGallery();
+      showToast('success', 'Photo uploaded to project gallery!');
     } catch (err: any) {
-      alert(err?.message || 'Upload failed');
+      showToast('error', err?.message || 'Upload failed');
     }
     target.value = '';
+  }
+};
+
+// Export ZIP Bundle
+const handleDownloadZip = async () => {
+  if (selectedAssetIds.value.length === 0 || selectedPresetIds.value.length === 0) {
+    showToast('error', 'Select at least one image and one preset format.');
+    return;
+  }
+
+  isExporting.value = true;
+  try {
+    const res = await $fetch<{ downloadUrl: string; filename: string; totalFiles: number }>('/api/exports', {
+      method: 'POST',
+      body: {
+        assetIds: selectedAssetIds.value,
+        presetIds: selectedPresetIds.value,
+      },
+    });
+
+    // Trigger instant browser download
+    const link = document.createElement('a');
+    link.href = res.downloadUrl;
+    link.download = res.filename || 'shopshot_export.zip';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showToast('success', `Export bundle ready! (${res.totalFiles} images packaged in ZIP)`);
+    showExportModal.value = false;
+  } catch (err: any) {
+    showToast('error', err?.data?.error?.message || err?.message || 'Export failed.');
+  } finally {
+    isExporting.value = false;
   }
 };
 
@@ -182,13 +255,24 @@ onMounted(fetchGallery);
       </div>
     </header>
 
-    <!-- Filter Bar -->
+    <!-- Toast Notification -->
+    <div
+      v-if="toastMessage"
+      class="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold transition-all"
+      :class="toastMessage.type === 'success' ? 'bg-zinc-900 text-white border-emerald-500/40' : 'bg-destructive text-destructive-foreground border-destructive'"
+    >
+      <CheckCircle2 v-if="toastMessage.type === 'success'" class="h-4 w-4 text-emerald-400" />
+      <AlertCircle v-else class="h-4 w-4" />
+      <span>{{ toastMessage.text }}</span>
+    </div>
+
+    <!-- Filter & Action Bar -->
     <div class="flex flex-wrap items-center justify-between gap-4 bg-card/80 backdrop-blur-md p-3 rounded-2xl border border-border/80 shadow-xs">
       <!-- Kind filters -->
       <div class="flex flex-wrap items-center gap-1.5 text-xs">
         <button
           v-for="filter in [
-            { id: 'all', label: 'All Assets' },
+            { id: 'all', label: 'All' },
             { id: 'original', label: 'Originals' },
             { id: 'cutout', label: 'Cut-outs' },
             { id: 'scene', label: 'Scenes' },
@@ -205,8 +289,30 @@ onMounted(fetchGallery);
         </button>
       </div>
 
-      <!-- Favorites & Actions -->
-      <div class="flex items-center gap-3">
+      <!-- Multi-select & Batch Actions -->
+      <div class="flex items-center gap-2.5">
+        <!-- Multi-select Toggle -->
+        <button
+          type="button"
+          @click="isSelectionMode = !isSelectionMode; if (!isSelectionMode) selectedAssetIds = []"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all"
+          :class="isSelectionMode ? 'bg-primary/10 border-primary text-primary' : 'border-border/80 text-muted-foreground hover:text-foreground'"
+        >
+          <CheckSquare class="h-3.5 w-3.5" />
+          <span>{{ isSelectionMode ? 'Cancel Selection' : 'Select Images' }}</span>
+        </button>
+
+        <!-- Export ZIP Button (When items selected) -->
+        <button
+          v-if="selectedAssetIds.length > 0"
+          type="button"
+          @click="showExportModal = true"
+          class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
+        >
+          <Archive class="h-3.5 w-3.5" />
+          <span>Export ZIP ({{ selectedAssetIds.length }})</span>
+        </button>
+
         <button
           type="button"
           @click="showFavoritesOnly = !showFavoritesOnly"
@@ -218,11 +324,11 @@ onMounted(fetchGallery);
         </button>
 
         <label
-          class="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold cursor-pointer transition-all shadow-md shadow-violet-500/20 hover:scale-[1.02]"
+          class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold cursor-pointer transition-all shadow-md shadow-violet-500/20"
         >
           <Loader2 v-if="isUploading" class="h-3.5 w-3.5 animate-spin" />
           <UploadCloud v-else class="h-3.5 w-3.5" />
-          <span>{{ isUploading ? 'Uploading...' : 'Upload Photo' }}</span>
+          <span>Upload</span>
           <input
             type="file"
             class="hidden"
@@ -232,6 +338,40 @@ onMounted(fetchGallery);
           />
         </label>
       </div>
+    </div>
+
+    <!-- Selection Bar if active -->
+    <div
+      v-if="isSelectionMode"
+      class="bg-muted/60 border border-primary/30 p-2.5 rounded-2xl flex items-center justify-between text-xs font-bold"
+    >
+      <div class="flex items-center gap-2">
+        <span class="text-primary">{{ selectedAssetIds.length }} images selected</span>
+        <button
+          type="button"
+          @click="selectAllVisible"
+          class="px-2 py-0.5 rounded-lg bg-card border border-border text-foreground hover:bg-muted text-[11px]"
+        >
+          Select All Visible
+        </button>
+        <button
+          type="button"
+          @click="clearSelection"
+          class="px-2 py-0.5 rounded-lg bg-card border border-border text-muted-foreground hover:bg-muted text-[11px]"
+        >
+          Clear
+        </button>
+      </div>
+
+      <button
+        type="button"
+        @click="showExportModal = true"
+        :disabled="selectedAssetIds.length === 0"
+        class="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-primary text-white text-xs font-bold disabled:opacity-50"
+      >
+        <Archive class="h-3.5 w-3.5" />
+        <span>Configure Marketplace ZIP</span>
+      </button>
     </div>
 
     <!-- Gallery Grid -->
@@ -259,13 +399,27 @@ onMounted(fetchGallery);
       <div
         v-for="asset in filteredAssets"
         :key="asset.id"
-        class="group relative rounded-3xl border border-border/80 bg-card overflow-hidden hover:border-primary/50 transition-all hover:shadow-xl flex flex-col"
+        @click="isSelectionMode ? toggleSelectAsset(asset.id) : (previewAsset = asset)"
+        class="group relative rounded-3xl border border-border/80 bg-card overflow-hidden transition-all hover:shadow-xl flex flex-col cursor-pointer"
+        :class="selectedAssetIds.includes(asset.id) ? 'border-primary ring-2 ring-primary/50' : 'hover:border-primary/50'"
       >
-        <!-- Thumbnail preview with checkerboard background -->
+        <!-- Selection Checkbox -->
         <div
-          class="aspect-square w-full bg-zinc-950 relative overflow-hidden cursor-pointer bg-checkerboard flex items-center justify-center"
-          @click="previewAsset = asset"
+          v-if="isSelectionMode"
+          class="absolute top-2.5 left-2.5 z-20"
+          @click.stop="toggleSelectAsset(asset.id)"
         >
+          <div
+            class="w-6 h-6 rounded-lg flex items-center justify-center transition-all shadow-md"
+            :class="selectedAssetIds.includes(asset.id) ? 'bg-primary text-white' : 'bg-black/60 text-white/70 border border-white/30'"
+          >
+            <CheckSquare v-if="selectedAssetIds.includes(asset.id)" class="h-4 w-4" />
+            <Square v-else class="h-4 w-4" />
+          </div>
+        </div>
+
+        <!-- Thumbnail preview with checkerboard background -->
+        <div class="aspect-square w-full bg-zinc-950 relative overflow-hidden bg-checkerboard flex items-center justify-center">
           <img
             :src="asset.blobUrl"
             :alt="asset.kind"
@@ -273,27 +427,8 @@ onMounted(fetchGallery);
             loading="lazy"
           />
 
-          <!-- Hover overlay actions -->
-          <div class="absolute inset-0 bg-black/50 backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-            <button
-              type="button"
-              @click.stop="previewAsset = asset"
-              class="p-2.5 rounded-full bg-white text-zinc-950 hover:bg-zinc-100 shadow-xl transition-transform hover:scale-110"
-              title="Preview full screen"
-            >
-              <Eye class="h-4 w-4" />
-            </button>
-            <NuxtLink
-              :to="`/projects/${projectId}`"
-              class="p-2.5 rounded-full bg-white text-zinc-950 hover:bg-zinc-100 shadow-xl transition-transform hover:scale-110"
-              title="Open in Studio"
-            >
-              <ExternalLink class="h-4 w-4" />
-            </NuxtLink>
-          </div>
-
           <!-- Kind badge -->
-          <div class="absolute top-2.5 left-2.5 pointer-events-none">
+          <div v-if="!isSelectionMode" class="absolute top-2.5 left-2.5 pointer-events-none">
             <span
               class="text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-md shadow-xs"
               :class="getKindBadge(asset.kind).class"
@@ -306,7 +441,7 @@ onMounted(fetchGallery);
           <button
             type="button"
             @click.stop="handleToggleFavorite(asset)"
-            class="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-background/80 backdrop-blur-md hover:bg-background text-muted-foreground hover:text-rose-500 transition-all shadow-sm"
+            class="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-background/80 backdrop-blur-md hover:bg-background text-muted-foreground hover:text-rose-500 transition-all shadow-sm z-10"
           >
             <Heart
               class="h-3.5 w-3.5"
@@ -322,25 +457,105 @@ onMounted(fetchGallery);
           </span>
 
           <div class="flex items-center gap-1">
-            <a
-              :href="asset.blobUrl"
-              target="_blank"
-              download
+            <NuxtLink
+              :to="`/projects/${projectId}`"
               class="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title="Download image"
+              title="Open in Studio"
+              @click.stop
             >
-              <Download class="h-3.5 w-3.5" />
-            </a>
+              <Sparkles class="h-3.5 w-3.5 text-primary" />
+            </NuxtLink>
 
             <button
               type="button"
-              @click="handleDeleteAsset(asset.id)"
+              @click.stop="handleDeleteAsset(asset.id)"
               class="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
               title="Delete asset"
             >
               <Trash2 class="h-3.5 w-3.5" />
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export ZIP Configuration Modal -->
+    <div
+      v-if="showExportModal"
+      class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+      @click.self="showExportModal = false"
+    >
+      <div class="relative max-w-lg w-full bg-card rounded-3xl border border-border p-6 shadow-2xl space-y-5">
+        <div class="flex items-center justify-between pb-3 border-b border-border/80">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+              <Archive class="h-4 w-4" />
+            </div>
+            <div>
+              <h3 class="text-sm font-extrabold text-foreground">Marketplace ZIP Export</h3>
+              <p class="text-[11px] text-muted-foreground">High-precision Sharp batch processor</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            @click="showExportModal = false"
+            class="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground"
+          >
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+
+        <div class="space-y-3">
+          <label class="block text-xs font-bold text-foreground">
+            Select Output Formats ({{ selectedPresetIds.length }} selected):
+          </label>
+
+          <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+            <div
+              v-for="preset in EXPORT_PRESETS"
+              :key="preset.id"
+              @click="
+                selectedPresetIds.includes(preset.id)
+                  ? (selectedPresetIds = selectedPresetIds.filter((p) => p !== preset.id))
+                  : selectedPresetIds.push(preset.id)
+              "
+              class="p-3 rounded-2xl border cursor-pointer transition-all flex items-center justify-between"
+              :class="selectedPresetIds.includes(preset.id) ? 'border-primary bg-primary/10 shadow-xs' : 'border-border bg-card hover:border-primary/40'"
+            >
+              <div class="min-w-0 pr-2">
+                <div class="text-xs font-bold text-foreground flex items-center gap-2">
+                  <span>{{ preset.label }}</span>
+                  <span class="text-[10px] font-mono font-normal text-muted-foreground">({{ preset.width }}×{{ preset.height }})</span>
+                </div>
+                <div class="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{{ preset.description }}</div>
+              </div>
+
+              <div
+                class="w-5 h-5 rounded-lg flex items-center justify-center shrink-0"
+                :class="selectedPresetIds.includes(preset.id) ? 'bg-primary text-white' : 'border border-border'"
+              >
+                <PackageCheck v-if="selectedPresetIds.includes(preset.id)" class="h-3 w-3" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-2 flex items-center justify-between border-t border-border/80">
+          <span class="text-xs text-muted-foreground font-mono">
+            {{ selectedAssetIds.length }} images × {{ selectedPresetIds.length }} presets = {{ selectedAssetIds.length * selectedPresetIds.length }} files
+          </span>
+
+          <button
+            type="button"
+            @click="handleDownloadZip"
+            :disabled="isExporting || selectedPresetIds.length === 0"
+            class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/25"
+          >
+            <Loader2 v-if="isExporting" class="h-4 w-4 animate-spin" />
+            <Download v-else class="h-4 w-4" />
+            <span>{{ isExporting ? 'Packaging ZIP...' : 'Download ZIP Bundle' }}</span>
+          </button>
         </div>
       </div>
     </div>

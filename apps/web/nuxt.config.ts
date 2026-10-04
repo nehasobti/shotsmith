@@ -33,5 +33,16 @@ export default defineNuxtConfig({
   },
   nitro: {
     preset: 'node-server',
+    routeRules: {
+      '/**': {
+        headers: {
+          'X-Frame-Options': 'DENY',
+          'X-Content-Type-Options': 'nosniff',
+          'Referrer-Policy': 'strict-origin-when-cross-origin',
+          'Content-Security-Policy':
+            "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://*.blob.vercel-storage.com https://images.unsplash.com https://picsum.photos https://*.fal.media https://fal.media; font-src 'self' data:; connect-src 'self' https://*.blob.vercel-storage.com https://*.fal.ai https://fal.ai https://generativelanguage.googleapis.com https://*.upstash.io;",
+        },
+      },
+    },
   },
 });

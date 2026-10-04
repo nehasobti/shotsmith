@@ -2,12 +2,27 @@ import { createJobSchema, CREDIT_COSTS, type JobType } from '@shopshot/shared';
 import { requireUserSession } from '../utils/auth';
 import { db, generationJobs, assets } from '../db';
 import { deductCredits } from '../lib/credits';
+import { limitJobsPerUser } from '../lib/ratelimit';
 import { inngest } from '../inngest/client';
 import { eq, and } from 'drizzle-orm';
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
   const userId = session.user.id;
+
+  const rateCheck = await limitJobsPerUser(userId);
+  if (!rateCheck.success) {
+    throw createError({
+      statusCode: 429,
+      statusMessage: 'Too Many Requests',
+      data: {
+        error: {
+          code: 'RATE_LIMIT_EXCEEDED',
+          message: 'Job rate limit reached (max 10 jobs per minute). Please try again in a moment.',
+        },
+      },
+    });
+  }
 
   const rawBody = await readBody(event);
   const parsed = createJobSchema.safeParse(rawBody);

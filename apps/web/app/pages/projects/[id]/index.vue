@@ -122,8 +122,11 @@ const handleToggleFavorite = async (assetId: string, currentFav: boolean) => {
 };
 
 // Phase 3: Trigger Background Removal Job
+const expectedVariations = ref(1);
+
 const handleStartRemoveBg = async () => {
   if (!activeAsset.value) return;
+  expectedVariations.value = 1;
 
   try {
     const { job, remainingCredits } = await startJob({
@@ -154,6 +157,126 @@ const handleStartRemoveBg = async () => {
     });
   } catch (err: any) {
     showToast('error', err?.data?.error?.message || err?.message || 'Failed to start background removal');
+  }
+};
+
+const handleStartScene = async (payload: { presetId?: string; prompt?: string; variationCount: number }) => {
+  if (!activeAsset.value) return;
+  expectedVariations.value = payload.variationCount;
+
+  try {
+    const { job, remainingCredits } = await startJob({
+      projectId: projectId.value,
+      sourceAssetId: activeAsset.value.id,
+      type: 'scene',
+      params: {
+        presetId: payload.presetId,
+        prompt: payload.prompt,
+        variationCount: payload.variationCount,
+      },
+    });
+
+    if (balance.value !== null) {
+      balance.value = remainingCredits;
+    }
+
+    showToast('success', `Generating ${payload.variationCount} scene variations...`);
+
+    pollJobUntilDone(job.id, {
+      onSuccess: async (newAssets) => {
+        await fetchProjectDetails();
+        await fetchCredits();
+        if (newAssets.length > 0) {
+          activeAsset.value = newAssets[0];
+        }
+        showToast('success', 'Scene variations generated successfully!');
+      },
+      onError: async (errMsg) => {
+        await fetchCredits();
+        showToast('error', errMsg);
+      },
+    });
+  } catch (err: any) {
+    showToast('error', err?.data?.error?.message || err?.message || 'Failed to start scene generation');
+  }
+};
+
+const handleStartMagicEdit = async (payload: { instruction: string; maskUrl?: string }) => {
+  if (!activeAsset.value) return;
+  expectedVariations.value = 1;
+
+  try {
+    const { job, remainingCredits } = await startJob({
+      projectId: projectId.value,
+      sourceAssetId: activeAsset.value.id,
+      type: 'edit',
+      params: {
+        instruction: payload.instruction,
+        maskUrl: payload.maskUrl,
+      },
+    });
+
+    if (balance.value !== null) {
+      balance.value = remainingCredits;
+    }
+
+    showToast('success', 'Magic edit job in progress...');
+
+    pollJobUntilDone(job.id, {
+      onSuccess: async (newAssets) => {
+        await fetchProjectDetails();
+        await fetchCredits();
+        if (newAssets.length > 0) {
+          activeAsset.value = newAssets[0];
+        }
+        showToast('success', 'Magic edit completed successfully!');
+      },
+      onError: async (errMsg) => {
+        await fetchCredits();
+        showToast('error', errMsg);
+      },
+    });
+  } catch (err: any) {
+    showToast('error', err?.data?.error?.message || err?.message || 'Failed to start magic edit');
+  }
+};
+
+const handleStartUpscale = async (payload: { scale: 2 | 4 }) => {
+  if (!activeAsset.value) return;
+  expectedVariations.value = 1;
+
+  try {
+    const { job, remainingCredits } = await startJob({
+      projectId: projectId.value,
+      sourceAssetId: activeAsset.value.id,
+      type: 'upscale',
+      params: {
+        scale: payload.scale,
+      },
+    });
+
+    if (balance.value !== null) {
+      balance.value = remainingCredits;
+    }
+
+    showToast('success', `Upscaling image ${payload.scale}×...`);
+
+    pollJobUntilDone(job.id, {
+      onSuccess: async (newAssets) => {
+        await fetchProjectDetails();
+        await fetchCredits();
+        if (newAssets.length > 0) {
+          activeAsset.value = newAssets[0];
+        }
+        showToast('success', `Image upscaled ${payload.scale}× successfully!`);
+      },
+      onError: async (errMsg) => {
+        await fetchCredits();
+        showToast('error', errMsg);
+      },
+    });
+  } catch (err: any) {
+    showToast('error', err?.data?.error?.message || err?.message || 'Failed to start upscale');
   }
 };
 
@@ -284,6 +407,9 @@ onMounted(async () => {
           :has-active-asset="Boolean(activeAsset) && !isJobRunning"
           :user-credits="balance"
           @start-remove-bg="handleStartRemoveBg"
+          @start-scene="handleStartScene"
+          @start-magic-edit="handleStartMagicEdit"
+          @start-upscale="handleStartUpscale"
         />
 
         <!-- Center: Interactive Canvas with Pan/Zoom & Compare -->
@@ -299,7 +425,7 @@ onMounted(async () => {
           :assets="assetsList"
           :active-asset-id="activeAsset?.id || null"
           :is-running-job="isJobRunning"
-          :expected-variations-count="1"
+          :expected-variations-count="expectedVariations"
           @select-asset="handleSelectAsset"
           @toggle-favorite="handleToggleFavorite"
         />

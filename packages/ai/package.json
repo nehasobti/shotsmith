@@ -12,8 +12,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.87",
     "@fal-ai/client": "^1.2.3",
     "@shopshot/shared": "workspace:*",
+    "ai": "^7.0.127",
     "zod": "^3.24.2"
   },
   "devDependencies": {
