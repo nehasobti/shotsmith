@@ -6,6 +6,7 @@ import ToolPanel from '~/components/studio/ToolPanel.vue';
 import ResultsStrip from '~/components/studio/ResultsStrip.vue';
 import { useUpload } from '~/composables/useUpload';
 import { useCredits } from '~/composables/useCredits';
+import { useJobs } from '~/composables/useJobs';
 import {
   Sparkles,
   ArrowLeft,
@@ -13,7 +14,9 @@ import {
   FileText,
   UploadCloud,
   Loader2,
-  Share2,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-vue-next';
 
 interface Asset {
@@ -41,14 +44,23 @@ const assetsList = ref<Asset[]>([]);
 const activeAsset = ref<Asset | null>(null);
 const isLoading = ref(true);
 const errorMessage = ref<string | null>(null);
+const toastMessage = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 
 const { isUploading, uploadProductPhoto } = useUpload();
 const { balance, fetchCredits } = useCredits();
+const { isJobRunning, activeJob, elapsedSeconds, jobError, startJob, pollJobUntilDone } = useJobs();
 
 // The original asset for this project (used for Before/After compare)
 const originalAsset = computed(() => {
   return assetsList.value.find((a) => a.kind === 'original') || assetsList.value[assetsList.value.length - 1] || null;
 });
+
+const showToast = (type: 'success' | 'error', text: string) => {
+  toastMessage.value = { type, text };
+  setTimeout(() => {
+    toastMessage.value = null;
+  }, 5000);
+};
 
 const fetchProjectDetails = async () => {
   isLoading.value = true;
@@ -78,8 +90,9 @@ const handleUploadFile = async (file: File) => {
       const created = assetsList.value.find((a) => a.id === res.assetId);
       if (created) activeAsset.value = created;
     }
+    showToast('success', 'Original product photo uploaded!');
   } catch (err: any) {
-    alert(err?.message || 'Upload failed');
+    showToast('error', err?.message || 'Upload failed');
   }
 };
 
@@ -105,6 +118,42 @@ const handleToggleFavorite = async (assetId: string, currentFav: boolean) => {
     if (found) found.isFavorite = currentFav;
   } catch (err: any) {
     console.error('Failed to update favorite:', err);
+  }
+};
+
+// Phase 3: Trigger Background Removal Job
+const handleStartRemoveBg = async () => {
+  if (!activeAsset.value) return;
+
+  try {
+    const { job, remainingCredits } = await startJob({
+      projectId: projectId.value,
+      sourceAssetId: activeAsset.value.id,
+      type: 'remove_bg',
+    });
+
+    if (balance.value !== null) {
+      balance.value = remainingCredits;
+    }
+
+    showToast('success', 'Background removal job started!');
+
+    pollJobUntilDone(job.id, {
+      onSuccess: async (newAssets) => {
+        await fetchProjectDetails();
+        await fetchCredits();
+        if (newAssets.length > 0) {
+          activeAsset.value = newAssets[0];
+        }
+        showToast('success', 'Transparent cut-out generated successfully!');
+      },
+      onError: async (errMsg) => {
+        await fetchCredits();
+        showToast('error', errMsg);
+      },
+    });
+  } catch (err: any) {
+    showToast('error', err?.data?.error?.message || err?.message || 'Failed to start background removal');
   }
 };
 
@@ -174,8 +223,17 @@ onMounted(async () => {
         </NuxtLink>
       </div>
 
-      <!-- Quick Upload Action -->
-      <div class="flex items-center gap-2">
+      <!-- Quick Upload Action & Job Status Pill -->
+      <div class="flex items-center gap-3">
+        <!-- Running Job Live Indicator -->
+        <div
+          v-if="isJobRunning"
+          class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/15 border border-primary/30 text-primary text-xs font-bold animate-pulse"
+        >
+          <Loader2 class="h-3.5 w-3.5 animate-spin" />
+          <span>Processing ({{ elapsedSeconds }}s)</span>
+        </div>
+
         <label
           class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-bold cursor-pointer transition-all shadow-md shadow-violet-500/20 hover:scale-[1.02]"
         >
@@ -190,6 +248,17 @@ onMounted(async () => {
         </label>
       </div>
     </header>
+
+    <!-- Floating Toast Notification -->
+    <div
+      v-if="toastMessage"
+      class="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-2xl border text-xs font-bold transition-all"
+      :class="toastMessage.type === 'success' ? 'bg-zinc-900 text-white border-emerald-500/40' : 'bg-destructive text-destructive-foreground border-destructive'"
+    >
+      <CheckCircle2 v-if="toastMessage.type === 'success'" class="h-4 w-4 text-emerald-400" />
+      <AlertCircle v-else class="h-4 w-4" />
+      <span>{{ toastMessage.text }}</span>
+    </div>
 
     <!-- Main Workspace Area: Tools Left, Canvas Center, Results Right -->
     <div class="flex-1 p-3 sm:p-4 overflow-hidden flex flex-col lg:flex-row gap-3">
@@ -212,8 +281,9 @@ onMounted(async () => {
       <template v-else>
         <!-- Left: Tool Panel -->
         <ToolPanel
-          :has-active-asset="Boolean(activeAsset)"
+          :has-active-asset="Boolean(activeAsset) && !isJobRunning"
           :user-credits="balance"
+          @start-remove-bg="handleStartRemoveBg"
         />
 
         <!-- Center: Interactive Canvas with Pan/Zoom & Compare -->
@@ -228,6 +298,8 @@ onMounted(async () => {
         <ResultsStrip
           :assets="assetsList"
           :active-asset-id="activeAsset?.id || null"
+          :is-running-job="isJobRunning"
+          :expected-variations-count="1"
           @select-asset="handleSelectAsset"
           @toggle-favorite="handleToggleFavorite"
         />

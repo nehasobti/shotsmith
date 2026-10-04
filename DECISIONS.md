@@ -37,3 +37,18 @@ This document records architectural, technical, and implementation decisions mad
 3. **Gallery & Asset Management**:
    - Created a dedicated gallery route (`/projects/:id/gallery`) with instant kind filtering (`original`, `cutout`, `scene`, `edit`, `upscale`), favorite toggling, asset deletion, and full-screen lightbox modal.
    - Ensured asset deletion cleans up storage blobs and resets project cover references.
+
+## Phase 3: Job Engine & Background Removal Decisions
+
+1. **AI Provider Architecture & Resiliency**:
+   - Implemented `FalAiProvider` in `@shopshot/ai` leveraging `@fal-ai/client` queue API with webhook support for background removal (`fal-ai/birefnet`).
+   - Built `createAiProvider` factory with automated fallback to `MockAiProvider` when API keys are absent or when configured for offline/testing development.
+
+2. **Durable Job Execution & Credit Guarantees**:
+   - Wired Inngest background event processing via `/api/inngest` and `/api/webhooks/fal`.
+   - Enforced transactional credit debit (`reason: 'job_charge'`) upon job submission and reliable automatic refund (`reason: 'job_refund'`) if generation or storage fails.
+
+3. **Reactive Polling Composable & Studio Integration**:
+   - Created `useJobs` composable offering reactive job polling, active job tracking, and auto-refresh of project assets.
+   - Added Studio one-click "Remove Background" action with credit balance verification, active task loading states, and instant cutout rendering on the canvas.
+
